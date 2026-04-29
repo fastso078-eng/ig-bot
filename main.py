@@ -12,20 +12,26 @@ class LoginData(BaseModel):
 class TaskData(BaseModel):
     username: str
     password: str
-    target_username: str
     action: str  # "follow" or "like"
+    target_username: str
     count: int = 10
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "ig-bot is running"}
+    return {"status": "ok", "message": "IG Bot Running"}
 
 @app.post("/login")
 def login(data: LoginData):
     cl = Client()
     try:
         cl.login(data.username, data.password)
-        return {"status": "success", "message": "Logged in successfully"}
+        user_info = cl.user_info_by_username(data.username)
+        return {
+            "status": "success",
+            "user_id": str(user_info.pk),
+            "full_name": user_info.full_name,
+            "avatar_url": str(user_info.profile_pic_url)
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -34,23 +40,33 @@ def do_task(data: TaskData):
     cl = Client()
     try:
         cl.login(data.username, data.password)
+        target = cl.user_info_by_username(data.target_username)
         
         if data.action == "follow":
-            user_id = cl.user_id_from_username(data.target_username)
-            cl.user_follow(user_id)
-            return {"status": "success", "action": "follow", "target": data.target_username}
+            cl.user_follow(target.pk)
+            return {"status": "success", "action": "followed", "target": data.target_username}
         
         elif data.action == "like":
-            user_id = cl.user_id_from_username(data.target_username)
-            medias = cl.user_medias(user_id, data.count)
+            medias = cl.user_medias(target.pk, amount=data.count)
             liked = 0
             for media in medias:
                 cl.media_like(media.id)
                 liked += 1
-            return {"status": "success", "action": "like", "liked_count": liked}
+            return {"status": "success", "action": "liked", "count": liked}
         
-        else:
-            raise HTTPException(status_code=400, detail="Invalid action")
-    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/user-info/{username}")
+def get_user_info(username: str):
+    cl = Client()
+    try:
+        info = cl.user_info_by_username_v1(username)
+        return {
+            "username": username,
+            "full_name": info.full_name,
+            "avatar_url": str(info.profile_pic_url),
+            "followers": info.follower_count
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
