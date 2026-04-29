@@ -3,4 +3,4 @@ services:
     name: ig-bot
     env: python
     buildCommand: pip install uvicorn[standard] fastapi instagrapi Pillow
-    startCommand: python -m uvicorn main:app --host 0.0.0.0 --port 10000
+    startCommand: python -m uvicorn main:app --host 0.0.0.0 --port $PORT
